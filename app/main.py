@@ -51,6 +51,7 @@ async def startup_event():
     
     torch_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     device_str = "cuda" if torch.cuda.is_available() else "cpu"
+    app.state.device = device_str
     
     app.state.whisper_model = whisperx.load_model(
         MODEL_NAME,
