@@ -5,10 +5,10 @@ WORKDIR /app
 RUN pip install --no-cache-dir uv
 
 RUN uv pip install --system --no-cache-dir \
-    --index-url https://download.pytorch.org/whl/cu128 \
+    --index-url https://download.pytorch.org/whl/cu121 \
     --trusted-host download.pytorch.org \
-    torch==2.5.0+cu128 \
-    torchaudio==2.5.0+cu128 \
+    torch==2.5.1+cu121 \
+    torchaudio==2.5.1+cu121 \
     xformers==0.0.33
 
 COPY requirements.txt .
