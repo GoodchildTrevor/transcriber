@@ -1,6 +1,5 @@
 # AI & Audio
 huggingface-hub==0.36.0
-pyannote.audio==4.0.2
 whisperx==3.7.4
 
 # FastAPI stack
