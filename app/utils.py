@@ -104,9 +104,9 @@ async def transcriber(
                 aligned_result = whisperx.align(
                     segments,
                     align_model,
-                    device,
                     align_metadata,
                     audio,
+                    device,
                     return_char_alignments=False
                 )
             except Exception as e:
