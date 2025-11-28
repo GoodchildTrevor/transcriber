@@ -12,7 +12,7 @@ RUN uv pip install --system --no-cache-dir \
     xformers==0.0.33
 
 COPY requirements.txt .
-RUN uv pip install --no-cache-dir -r requirements.txt 
+RUN uv pip install --system --no-cache-dir -r requirements.txt 
 
 COPY . .
 
