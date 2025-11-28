@@ -7,8 +7,8 @@ RUN pip install --no-cache-dir uv
 RUN uv pip install --system --no-cache-dir \
     --index-url https://download.pytorch.org/whl/cu128 \
     --trusted-host download.pytorch.org \
-    torch==2.8.0+cu128 \
-    torchaudio==2.8.0+cu128 \
+    torch==2.5.0+cu128 \
+    torchaudio==2.5.0+cu128 \
     xformers==0.0.33
 
 COPY requirements.txt .
