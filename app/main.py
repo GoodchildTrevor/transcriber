@@ -49,23 +49,25 @@ transcription_semaphor = asyncio.Semaphore(MAX_CONCURRENT_TRANSCRIPTIONS)
 @app.on_event("startup")
 async def startup_event():
     
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    torch_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device_str = "cuda" if torch.cuda.is_available() else "cpu"
     
     app.state.whisper_model = whisperx.load_model(
-            MODEL_NAME,
-            device=device,
-            compute_type=COMPUTE_TYPE,
-            language=LANGUAGE,
-            # threads = WHISPERX_THREADS,
-        )
+        MODEL_NAME,
+        device=device_str,
+        compute_type=COMPUTE_TYPE,
+        language=LANGUAGE,
+    )
+    
     app.state.align_model, app.state.align_metadata = whisperx.load_align_model(
-            language_code=LANGUAGE, 
-            device=device
-        )
+        language_code=LANGUAGE, 
+        device=device_str
+    )
+    
     app.state.diarize_model = Pipeline.from_pretrained(
         "pyannote/speaker-diarization-3.1",
         use_auth_token=HF_TOKEN
-    ).to(device)
+    ).to(torch_device)  
 
 
 @app.on_event("shutdown")
