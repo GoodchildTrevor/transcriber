@@ -6,6 +6,7 @@ from fastapi import FastAPI, HTTPException, Query, UploadFile, Depends
 from fastapi.responses import JSONResponse
 import omegaconf.listconfig
 import omegaconf.dictconfig
+import omegaconf.base
 from pyannote.audio import Pipeline
 from dotenv import load_dotenv
 import torch
@@ -47,6 +48,7 @@ async def startup_event():
     torch.serialization.add_safe_globals([
         omegaconf.listconfig.ListConfig,
         omegaconf.dictconfig.DictConfig,
+        omegaconf.base.ContainerMetadata, 
     ])
     
     app.state.whisper_model = whisperx.load_model(
