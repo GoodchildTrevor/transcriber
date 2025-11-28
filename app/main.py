@@ -2,7 +2,11 @@ import asyncio
 import os
 import logging
 
-os.environ["TORCH_WEIGHTS_ONLY_LOAD_ALLOW_UNSAFE"] = "True"
+import typing
+import builtins
+import omegaconf.listconfig
+import omegaconf.dictconfig
+import omegaconf.base
 
 from fastapi import FastAPI, HTTPException, Query, UploadFile, Depends
 from fastapi.responses import JSONResponse
@@ -44,6 +48,18 @@ transcription_semaphor = asyncio.Semaphore(MAX_CONCURRENT_TRANSCRIPTIONS)
 async def startup_event():
     
     device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    torch.serialization.add_safe_globals([
+        omegaconf.listconfig.ListConfig,
+        omegaconf.dictconfig.DictConfig,
+        omegaconf.base.ContainerMetadata,
+        typing.Any,
+        list,
+        dict,
+        tuple,
+        set,
+        builtins.slice,
+    ])
     
     app.state.whisper_model = whisperx.load_model(
             MODEL_NAME,
