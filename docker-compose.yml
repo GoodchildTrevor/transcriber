@@ -1,8 +1,6 @@
 services:
   transcriber:
-    build:
-      context: /home/projects  
-      dockerfile: transcriber/Dockerfile
+    build: .
     runtime: nvidia
     restart: unless-stopped
     ports:
