@@ -49,7 +49,7 @@ transcription_semaphor = asyncio.Semaphore(MAX_CONCURRENT_TRANSCRIPTIONS)
 @app.on_event("startup")
 async def startup_event():
     
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     app.state.whisper_model = whisperx.load_model(
             MODEL_NAME,
