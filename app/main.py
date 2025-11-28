@@ -49,6 +49,7 @@ async def startup_event():
         omegaconf.listconfig.ListConfig,
         omegaconf.dictconfig.DictConfig,
         omegaconf.base.ContainerMetadata, 
+        typing.Any,
     ])
     
     app.state.whisper_model = whisperx.load_model(
