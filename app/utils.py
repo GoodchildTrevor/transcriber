@@ -62,73 +62,79 @@ async def transcriber(
         diarization: Optional[bool] = None
     ) -> list[dict[str, Any]]:
     """
-    Transcribe and diarize audio.
+    Transcribe and optionally diarize an audio file.
 
     :param logger: Logger instance
-    :param audio_bytes: audio file content (e.g., MP3, WAV)
+    :param upload_file: Uploaded audio file
     :param num_participants: Expected number of speakers (for diarization)
-    :return: Formatted transcript with speaker labels, e.g. "[SPEAKER_00]: Hello"
+    :param diarization: Whether to run speaker diarization
+    :return: List of aligned segments
     """
 
     audio = None
     result = None
 
     try:
-        upload_file.seek(0)
+        # 1️⃣ Load audio as np.ndarray
+        upload_file.file.seek(0)
         audio = load_audio_from_uploadfile(upload_file, target_sr=16000)
 
         min_speakers = 1
         max_speakers = num_participants
 
-        logger.info("Loading model")
-        model = app.state.whisper_model
+        logger.info("Loading Whisper model")
+        whisper_model = app.state.whisper_model
+        align_model = app.state.align_model
+        align_metadata = app.state.align_metadata
+        device = app.state.device  # should be torch.device
 
         with torch.no_grad():
+            # 2️⃣ Transcription
             try:
-                result = model.transcribe(
-                    audio, 
+                result = whisper_model.transcribe(
+                    audio,
                     batch_size=BATCH_SIZE,
                 )
             except Exception as e:
                 raise RuntimeError(f"Whisper transcription failed: {e}") from e
 
-            model_a = app.state.align_model
-            metadata = app.state.align_metadata
-            device = app.state.device
+            # 3️⃣ Alignment
             try:
-                result = whisperx.align(
-                    result["segments"], 
-                    model_a, 
+                segments = result["segments"]  # список сегментов
+                aligned_result = whisperx.align(
+                    segments,
+                    align_model,
                     device,
-                    metadata, 
-                    audio, 
+                    align_metadata,
+                    audio,
                     return_char_alignments=False
                 )
             except Exception as e:
                 raise RuntimeError(f"Alignment failed: {e}") from e
-        
-            logger.info("Segments are aligned! Result recieved!")
 
+            logger.info("Segments are aligned successfully")
+
+            # 4️⃣ Optional diarization
             if diarization:
                 diarize_model = app.state.diarize_model
-                logger.info(f"Diarization model loaded, max_speakers= {max_speakers}")
+                logger.info(f"Diarization model loaded, max_speakers={max_speakers}")
                 if num_participants:
                     diarize_segments = diarize_model(
-                        audio, 
-                        min_speakers=min_speakers, 
+                        audio,
+                        min_speakers=min_speakers,
                         max_speakers=max_speakers
                     )
                 else:
                     diarize_segments = diarize_model(audio)
+
                 logger.info("Segments are diarized")
-                result = whisperx.assign_word_speakers(diarize_segments, result)
-                logger.info("Speakers are assigned!")
+                aligned_result = whisperx.assign_word_speakers(diarize_segments, aligned_result)
+                logger.info("Speakers assigned successfully")
 
-        segments = result["segments"]
+        return aligned_result["segments"]
 
-        return segments
-    
     finally:
+        # Cleanup
         if audio is not None:
             del audio
         if result is not None:
@@ -136,5 +142,5 @@ async def transcriber(
 
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
-
         gc.collect()
+
