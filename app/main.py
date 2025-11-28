@@ -60,6 +60,9 @@ async def startup_event():
         dict,
         tuple,
         set,
+        int,
+        float,
+        str,
         builtins.slice,
     ])
     
