@@ -3,10 +3,10 @@ FROM python:3.12-slim
 WORKDIR /app
 
 RUN pip install --no-cache-dir \
-    --index-url https://download.pytorch.org/whl/cu121 \
+    --index-url https://download.pytorch.org/whl/cu128 \
     --trusted-host download.pytorch.org \
-    torch==2.8.0+cu121 \
-    torchaudio==2.8.0+cu121
+    torch==2.8.0+cu128 \
+    torchaudio==2.8.0+cu128
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt 
