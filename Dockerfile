@@ -2,18 +2,11 @@ FROM python:3.13-slim
 
 WORKDIR /app
 
-COPY resources/certs/eurocement_root_ca.crt /usr/local/share/ca-certificates/
-COPY resources/certs/eurocement_issuing_subca.crt /usr/local/share/ca-certificates/
-
-RUN update-ca-certificates
-
-COPY resources/pip.conf /etc/pip.conf
-
 RUN pip install --no-cache-dir \
     --index-url https://download.pytorch.org/whl/cu128 \
     --trusted-host download.pytorch.org \
-    torch==2.9.0+cu128 \
-    torchvision==0.24.0+cu128 \
+    torch==2.8.0+cu128 \
+    torchaudio==2.8.0+cu128 \
     xformers==0.0.33
 
 RUN pip install --no-cache-dir uv
