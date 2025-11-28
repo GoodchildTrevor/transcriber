@@ -6,15 +6,9 @@ services:
     restart: unless-stopped
     ports:
       - "8005:8005"
-    networks:
-      - ai_network
     environment:
       - HF_TOKEN=${HF_TOKEN}
       - HF_HOME=/root/.cache/huggingface
       - NVIDIA_VISIBLE_DEVICES=all
     volumes:
       - ./hf_host:/root/.cache/huggingface 
-
-networks:
-  ai_network:
-    external: true
