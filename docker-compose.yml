@@ -14,7 +14,3 @@ services:
       - NVIDIA_VISIBLE_DEVICES=all
     volumes:
       - ./hf_host:/root/.cache/huggingface 
-
-networks:
-  ai_network:
-    external: true
