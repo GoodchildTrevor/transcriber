@@ -2,13 +2,6 @@ import asyncio
 import os
 import logging
 
-import collections
-import typing
-import builtins
-import omegaconf.listconfig
-import omegaconf.dictconfig
-import omegaconf.base
-
 from fastapi import FastAPI, HTTPException, Query, UploadFile, Depends
 from fastapi.responses import JSONResponse
 from pyannote.audio import Pipeline
@@ -30,6 +23,14 @@ load_dotenv()
 
 HF_TOKEN = os.getenv("HF_TOKEN")
 
+_real_torch_load = torch.load
+
+def unsafe_load(*args, **kwargs):
+    kwargs["weights_only"] = False
+    return _real_torch_load(*args, **kwargs)
+
+torch.load = unsafe_load
+
 LOG_PATH = "transcriber.log"
 logging.basicConfig(
     level=logging.INFO,
@@ -49,22 +50,6 @@ transcription_semaphor = asyncio.Semaphore(MAX_CONCURRENT_TRANSCRIPTIONS)
 async def startup_event():
     
     device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    torch.serialization.add_safe_globals([
-        omegaconf.listconfig.ListConfig,
-        omegaconf.dictconfig.DictConfig,
-        omegaconf.base.ContainerMetadata,
-        collections.defaultdict,
-        typing.Any,
-        list,
-        dict,
-        tuple,
-        set,
-        int,
-        float,
-        str,
-        builtins.slice,
-    ])
     
     app.state.whisper_model = whisperx.load_model(
             MODEL_NAME,
