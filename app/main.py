@@ -2,6 +2,8 @@ import asyncio
 import os
 import logging
 
+os.environ["TORCH_WEIGHTS_ONLY_LOAD_ALLOW_UNSAFE"] = "True"
+
 from fastapi import FastAPI, HTTPException, Query, UploadFile, Depends
 from fastapi.responses import JSONResponse
 from pyannote.audio import Pipeline
@@ -21,7 +23,6 @@ from app.config import (
 
 load_dotenv()
 
-os.environ["TORCH_WEIGHTS_ONLY_LOAD_ALLOW_UNSAFE"] = "True"
 HF_TOKEN = os.getenv("HF_TOKEN")
 
 LOG_PATH = "transcriber.log"
@@ -41,6 +42,7 @@ transcription_semaphor = asyncio.Semaphore(MAX_CONCURRENT_TRANSCRIPTIONS)
 
 @app.on_event("startup")
 async def startup_event():
+    
     device = "cuda" if torch.cuda.is_available() else "cpu"
     
     app.state.whisper_model = whisperx.load_model(
