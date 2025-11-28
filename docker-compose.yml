@@ -1,6 +1,7 @@
 services:
   transcriber:
     build: .
+    container_name: transcriber
     runtime: nvidia
     restart: unless-stopped
     ports:
