@@ -10,6 +10,6 @@ python-multipart>=0.0.20
 # Other
 librosa>=0.10.0,<0.11.0
 python-dotenv>=1.0.0
-resampy 0.4.3
+resampy==0.4.3
 requests>=2.28.0
 soundfile>=0.12.1
