@@ -4,11 +4,9 @@ WORKDIR /app
 
 RUN pip install --no-cache-dir uv
 
-RUN curl -LO "https://download.pytorch.org/whl/cpu/torch-2.5.1%2Bcpu-cp313-cp313-linux_x86_64.whl" && \
-    curl -LO "https://download.pytorch.org/whl/cpu/torchaudio-2.5.1%2Bcpu-cp313-cp313-linux_x86_64.whl" && \
-    uv pip install --system --no-cache-dir \
-        torch-2.5.1+cpu-cp313-cp313-linux_x86_64.whl \
-    rm *.whl
+RUN pip install --no-cache-dir \
+    "https://download.pytorch.org/whl/cpu/torch-2.5.1%2Bcpu-cp313-cp313-linux_x86_64.whl" \
+    "https://download.pytorch.org/whl/cpu/torchaudio-2.5.1%2Bcpu-cp313-cp313-linux_x86_64.whl" \
 
 COPY requirements.txt .
 RUN uv pip install --system --no-cache-dir -r requirements.txt 
