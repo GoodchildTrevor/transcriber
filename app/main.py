@@ -2,6 +2,7 @@ import asyncio
 import os
 import logging
 
+import collections
 import typing
 import builtins
 import omegaconf.listconfig
@@ -53,6 +54,7 @@ async def startup_event():
         omegaconf.listconfig.ListConfig,
         omegaconf.dictconfig.DictConfig,
         omegaconf.base.ContainerMetadata,
+        collections.defaultdict,
         typing.Any,
         list,
         dict,
