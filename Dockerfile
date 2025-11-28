@@ -2,21 +2,21 @@ FROM python:3.13-slim
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir \
+RUN pip install --no-cache-dir uv
+
+RUN uv pip install --system --no-cache-dir \
     --index-url https://download.pytorch.org/whl/cu128 \
     --trusted-host download.pytorch.org \
     torch==2.8.0+cu128 \
     torchaudio==2.8.0+cu128 \
     xformers==0.0.33
 
-RUN pip install --no-cache-dir uv
-
-COPY transcriber/requirements.txt .
+COPY requirements.txt .
 RUN uv pip install --no-cache-dir -r requirements.txt 
 
-COPY transcriber/ .
+COPY . .
 
-COPY transcriber/entrypoint.sh /entrypoint.sh
+COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
