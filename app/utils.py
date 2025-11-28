@@ -93,11 +93,13 @@ async def transcriber(
                 raise RuntimeError(f"Whisper transcription failed: {e}") from e
 
             model_a = app.state.align_model
-            metadata =app.state.align_metadata
+            metadata = app.state.align_metadata
+            device = app.state.device
             try:
                 result = whisperx.align(
                     result["segments"], 
                     model_a, 
+                    device,
                     metadata, 
                     audio, 
                     return_char_alignments=False
