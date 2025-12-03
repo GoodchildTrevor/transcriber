@@ -1,4 +1,5 @@
 import asyncio
+import faulthandler
 from functools import lru_cache
 import os
 import logging
