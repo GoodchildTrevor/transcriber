@@ -4,18 +4,15 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    software-properties-common \
-    wget \
-    gnupg \
-    && add-apt-repository ppa:deadsnakes/ppa \
+RUN apt-get update -oAcquire::AllowInsecureRepositories=true \
+    && apt-get install -y --no-install-recommends --allow-unauthenticated \
+        ca-certificates software-properties-common wget gnupg \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN add-apt-repository ppa:deadsnakes/ppa \
+    && apt-get update \
     && apt-get install -y --no-install-recommends \
-    python3.12 \
-    python3.12-dev \
-    python3.12-venv \
-    python3-pip \
-    ffmpeg \
+        python3.12 python3.12-dev python3.12-venv python3-pip ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip3 install --no-cache-dir \
