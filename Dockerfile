@@ -16,6 +16,7 @@ RUN add-apt-repository ppa:deadsnakes/ppa \
     && rm -rf /var/lib/apt/lists/*
 
 RUN apt-get update && apt-get purge -y --auto-remove \
+        --allow-change-held-packages \ 
         libcudnn* libcublas* libcufft* libcurand* libcusolver* libcusparse* \
     && rm -rf /var/lib/apt/lists/*
 
