@@ -3,6 +3,11 @@ from functools import lru_cache
 import os
 import logging
 
+faulthandler.enable()
+
+if hasattr(os, "register_at_fork"):
+    os.register_at_fork(before=faulthandler.enable)
+
 from fastapi import FastAPI, HTTPException, Query, UploadFile, Depends
 from fastapi.responses import JSONResponse
 from pyannote.audio import Pipeline
