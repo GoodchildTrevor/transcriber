@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.4.1-cudnn9-runtime-ubuntu22.04
+FROM nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
 
 COPY resources/certs/eurocement_root_ca.crt /usr/local/share/ca-certificates/
 COPY resources/certs/eurocement_issuing_subca.crt /usr/local/share/ca-certificates/
