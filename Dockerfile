@@ -15,6 +15,10 @@ RUN add-apt-repository ppa:deadsnakes/ppa \
         python3.12 python3.12-dev python3.12-venv python3-pip ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
+RUN apt-get update && apt-get purge -y --auto-remove \
+        libcudnn* libcublas* libcufft* libcurand* libcusolver* libcusparse* \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN python3.12 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:${PATH}"
 
@@ -22,7 +26,8 @@ RUN pip install --no-cache-dir \
     --index-url https://download.pytorch.org/whl/cu128 \
     --trusted-host download.pytorch.org \
     torch==2.8.0+cu128 \
-    torchaudio==2.8.0+cu128
+    torchaudio==2.8.0+cu128 \
+    nvidia-cudnn-cu12==9.5.0.73
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
