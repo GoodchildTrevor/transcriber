@@ -43,7 +43,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
-transcription_semaphor = asyncio.Semaphore(MAX_CONCURRENT_TRANSCRIPTIONS)
+transcription_semaphore = asyncio.Semaphore(MAX_CONCURRENT_TRANSCRIPTIONS)
 
 
 @app.on_event("startup")
@@ -99,7 +99,7 @@ async def upload_file(
         diarization=diarization,
     )
 
-    async with transcription_semaphor:
+    async with transcription_semaphore:
         logger.info(f"Processing: {file.filename}, {params.model_dump()}")
 
         try: 
