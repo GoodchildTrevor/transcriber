@@ -9,6 +9,8 @@ faulthandler.enable()
 if hasattr(os, "register_at_fork"):
     os.register_at_fork(before=faulthandler.enable)
 
+os.environ.pop('LD_LIBRARY_PATH', None)
+
 from fastapi import FastAPI, HTTPException, Query, UploadFile, Depends
 from fastapi.responses import JSONResponse
 from pyannote.audio import Pipeline
