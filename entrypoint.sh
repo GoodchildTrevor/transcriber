@@ -2,11 +2,9 @@
 
 echo "🔧 Starting entrypoint..."
 
-# --- 1. Ensure cache dirs exist
 export HF_HOME="${HF_HOME:-/root/.cache/huggingface}"
 mkdir -p "$HF_HOME" 2>/dev/null || true
 
-# --- 2. cuDNN: enforce use of pip-installed version (critical for cu128)
 CUDNN_LIB_DIR="/opt/venv/lib/python3.12/site-packages/nvidia/cudnn/lib"
 if [ -d "$CUDNN_LIB_DIR" ]; then
     echo "✅ Found cuDNN in venv: $CUDNN_LIB_DIR"
@@ -17,7 +15,6 @@ else
     echo "   → Ensure 'nvidia-cudnn-cu12' is installed via pip"
 fi
 
-# --- 3. Hugging Face auth
 if [ -z "$HF_TOKEN" ]; then
     echo "⚠️ WARNING: HF_TOKEN not set — gated models will likely fail"
 else
@@ -41,7 +38,6 @@ else
 fi
 fi
 
---- 4. Optional: diagnostics (uncomment for debug)
 echo "📊 Diagnostics:"
 echo "   LD_LIBRARY_PATH: ${LD_LIBRARY_PATH:-<empty>}"
 if command -v /opt/venv/bin/python >/dev/null; then
