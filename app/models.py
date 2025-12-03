@@ -60,3 +60,7 @@ class TranscriptionParams(BaseModel):
         default=False,
         description="Enable speaker diarization",
     )
+    language: str = Field(
+        default="auto",
+        description="Language of audio",
+    )
