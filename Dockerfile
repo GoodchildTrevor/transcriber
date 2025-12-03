@@ -15,7 +15,10 @@ RUN add-apt-repository ppa:deadsnakes/ppa \
         python3.12 python3.12-dev python3.12-venv python3-pip ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install --no-cache-dir \
+RUN python3.12 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:${PATH}"
+
+RUN pip install --no-cache-dir \
     --index-url https://download.pytorch.org/whl/cu128 \
     --trusted-host download.pytorch.org \
     torch==2.8.0+cu128 \
