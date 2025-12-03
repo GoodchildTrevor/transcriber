@@ -4,6 +4,7 @@ import os
 from typing import Any, Optional
 import tempfile
 import shutil
+import subprocess
 
 from fastapi import FastAPI, UploadFile
 import librosa
@@ -16,42 +17,36 @@ from app.config import BATCH_SIZE
 
 
 def load_audio_from_uploadfile(file: UploadFile, target_sr: int = 16000) -> np.ndarray:
-    """
-    Load and preprocess audio directly from UploadFile (streaming, low memory).
-    
-    Uses temporary file; ensures cleanup and resets file pointer.
-    """
     try:
-        file.file.seek(0)
-
         with tempfile.NamedTemporaryFile(delete=True, suffix=".tmp", mode="wb") as tmp:
+            file.file.seek(0)
             shutil.copyfileobj(file.file, tmp)
             tmp.flush()
-            os.fsync(tmp.fileno())
+            
+            cmd = [
+                "ffmpeg",
+                "-nostdin",
+                "-threads", "0",
+                "-i", tmp.name,
+                "-f", "s16le",
+                "-ac", "1",
+                "-acodec", "pcm_s16le",
+                "-ar", str(target_sr),
+                "-"
+            ]
+            
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            out, err = process.communicate()
+            
+            if process.returncode != 0:
+                raise RuntimeError(f"FFmpeg failed: {err.decode()}")
 
-            audio, sr = sf.read(tmp.name, dtype='float32', always_2d=True)
-
-        try:
-            file.file.seek(0)
-        except (OSError, AttributeError):
-            pass 
-
-        if audio.shape[1] > 1:
-            audio = np.mean(audio, axis=1)
-        else:
-            audio = audio[:, 0]
-
-        if sr != target_sr:
-            audio = librosa.resample(
-                audio,
-                orig_sr=sr,
-                target_sr=target_sr,
-                res_type='kaiser_best'
-            )
-        return audio
+            audio_np = np.frombuffer(out, np.int16).flatten().astype(np.float32) / 32768.0
+            
+            return audio_np
 
     except Exception as e:
-        raise RuntimeError(f"Audio decoding/resampling failed: {e}") from e
+        raise RuntimeError(f"Audio decoding failed: {e}") from e
 
 
 async def transcriber(
