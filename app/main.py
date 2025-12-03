@@ -1,4 +1,5 @@
 import asyncio
+from functools import lru_cache
 import os
 import logging
 
@@ -43,32 +44,44 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
-transcription_semaphore = asyncio.Semaphore(MAX_CONCURRENT_TRANSCRIPTIONS)
+transcription_semaphor = asyncio.Semaphore(MAX_CONCURRENT_TRANSCRIPTIONS)
 
 
 @app.on_event("startup")
 async def startup_event():
-    
     torch_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     device_str = "cuda" if torch.cuda.is_available() else "cpu"
     app.state.device = device_str
-    
+
     app.state.whisper_model = whisperx.load_model(
         MODEL_NAME,
         device=device_str,
         compute_type=COMPUTE_TYPE,
-        language=LANGUAGE,
     )
-    
-    app.state.align_model, app.state.align_metadata = whisperx.load_align_model(
-        language_code=LANGUAGE, 
-        device=device_str
-    )
-    
+
+    try:
+        ru_align_model, ru_align_meta = whisperx.load_align_model(
+            language_code=LANGUAGE,
+            device=device_str
+        )
+        app.state.align_ru_model = ru_align_model
+        app.state.align_ru_metadata = ru_align_meta
+        logger.info("Preloaded Russian alignment model (ru)")
+    except Exception as e:
+        logger.error(f"Failed to preload Russian align model: {e}")
+
+    @lru_cache(maxsize=3)
+    def load_align_model_cached(lang: str):
+        model, meta = whisperx.load_align_model(language_code=lang, device=device_str)
+        logger.info(f"Loaded align model for '{lang}' (cached)")
+        return model, meta
+
+    app.state.load_align_model_cached = load_align_model_cached
+
     app.state.diarize_model = Pipeline.from_pretrained(
         "pyannote/speaker-diarization-3.1",
         use_auth_token=HF_TOKEN
-    ).to(torch_device)  
+    ).to(torch_device)
 
 
 @app.on_event("shutdown")
@@ -90,16 +103,18 @@ async def shutdown_event():
 @app.post("/transcriber/")
 async def upload_file(
     file: UploadFile = Depends(ValidatedAudioFile()),
+    language: str = Query(LANGUAGE),
     num_participants: int = Query(1, ge=1, le=100),
     diarization: bool = Query(False)
     ):
 
     params = TranscriptionParams(
+        language=language,
         num_participants=num_participants,
         diarization=diarization,
     )
 
-    async with transcription_semaphore:
+    async with transcription_semaphor:
         logger.info(f"Processing: {file.filename}, {params.model_dump()}")
 
         try: 
@@ -107,6 +122,7 @@ async def upload_file(
                 app=app, 
                 logger=logger, 
                 upload_file=file, 
+                language=language,
                 num_participants=num_participants, 
                 diarization=diarization,
             )
@@ -125,3 +141,4 @@ async def upload_file(
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8005)
+    
