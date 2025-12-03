@@ -1,11 +1,14 @@
-from fastapi import HTTPException, UploadFile
 import logging
 from typing import Optional
-from pydantic import BaseModel, Field
-from app.config import ALLOWED_AUDIO_TYPES, MAX_FILE_SIZE
+
+from fastapi import HTTPException, UploadFile
 import mimetypes
+from pydantic import BaseModel, Field
+
+from app.config import ALLOWED_AUDIO_TYPES, MAX_FILE_SIZE
 
 logger = logging.getLogger(__name__)
+
 
 class ValidatedAudioFile:
     """
@@ -56,3 +59,20 @@ class ValidatedAudioFile:
             )
         
         return file
+
+
+class TranscriptionParams(BaseModel):
+    num_participants: Optional[int] = Field(
+        default=1,
+        ge=1,
+        le=100,
+        description="Number of speakers",
+    )
+    diarization: bool = Field(
+        default=False,
+        description="Enable speaker diarization",
+    )
+    language: str = Field(
+        default="auto",
+        description="Language of audio",
+    )
