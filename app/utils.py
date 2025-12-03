@@ -58,6 +58,7 @@ async def transcriber(
         app: FastAPI,
         logger: Logger,
         upload_file: UploadFile,
+        language: str = "auto",
         num_participants: Optional[int] = None,
         diarization: Optional[bool] = None
     ) -> list[dict[str, Any]]:
@@ -84,27 +85,40 @@ async def transcriber(
 
         logger.info("Loading Whisper model")
         whisper_model = app.state.whisper_model
-        align_model = app.state.align_model
-        align_metadata = app.state.align_metadata
-        device = app.state.device  # should be torch.device
+        device = app.state.device  
+
+        force_lang = None
+        if language != "auto":
+            force_lang = language
+            logger.info(f"Language forced to: '{language}'")
+        else:
+            logger.info("Language detection enabled")
 
         with torch.no_grad():
             # 2️⃣ Transcription
             try:
                 result = whisper_model.transcribe(
                     audio,
+                    language=force_lang,
                     batch_size=BATCH_SIZE,
                 )
+                detected_lang = result.get("language", "unknown")
             except Exception as e:
                 raise RuntimeError(f"Whisper transcription failed: {e}") from e
 
             # 3️⃣ Alignment
+            if detected_lang == "ru" and hasattr(app.state, "align_ru_model"):
+                align_model = app.state.align_ru_model
+                align_meta = app.state.align_ru_metadata
+                logger.debug("Using preloaded Russian align model")
+            else:
+                align_model, align_meta = app.state.load_align_model_cached(detected_lang)
             try:
                 segments = result["segments"]  # список сегментов
                 aligned_result = whisperx.align(
                     segments,
                     align_model,
-                    align_metadata,
+                    align_meta,
                     audio,
                     device,
                     return_char_alignments=False
@@ -143,4 +157,3 @@ async def transcriber(
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
         gc.collect()
-
