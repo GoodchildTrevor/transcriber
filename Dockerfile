@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
+FROM nvidia/cuda:12.4.1-cudnn8-runtime-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -19,15 +19,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip3 install --no-cache-dir \
-    --index-url https://download.pytorch.org/whl/cu128   \
+    --index-url https://download.pytorch.org/whl/cu124 \
     --trusted-host download.pytorch.org \
-    torch==2.8.0+cu128 \
-    torchaudio==2.8.0+cu128 
+    torch==2.5.1+cu124 \
+    torchaudio==2.5.1+cu124
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
+
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
