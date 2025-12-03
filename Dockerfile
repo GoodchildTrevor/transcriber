@@ -16,10 +16,10 @@ RUN add-apt-repository ppa:deadsnakes/ppa \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip3 install --no-cache-dir \
-    --index-url https://download.pytorch.org/whl/cu124 \
+    --index-url https://download.pytorch.org/whl/cu128 \
     --trusted-host download.pytorch.org \
-    torch==2.5.1+cu124 \
-    torchaudio==2.5.1+cu124
+    torch==2.8.0+cu128 \
+    torchaudio==2.8.0+cu128
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
