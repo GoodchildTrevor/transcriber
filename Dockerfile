@@ -28,7 +28,7 @@ RUN pip install --no-cache-dir \
     --trusted-host download.pytorch.org \
     torch==2.8.0+cu128 \
     torchaudio==2.8.0+cu128 \
-    nvidia-cudnn-cu12==9.5.0.50
+    nvidia-cudnn-cu12==9.6.0.74
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
