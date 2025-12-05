@@ -127,41 +127,43 @@ async def transcriber(
             if diarization:
                 diarize_model = app.state.diarize_model
                 logger.info(f"Diarization model loaded, max_speakers={max_speakers}")
-                
-                # Конвертируем audio в torch tensor
-                audio_tensor = torch.from_numpy(audio).float()
-                # Добавляем размер канала: [channels, samples] -> [1, samples] для моно
-                audio_tensor = audio_tensor.unsqueeze(0)
-                
-                logger.info(f"Audio tensor shape: {audio_tensor.shape}, dtype: {audio_tensor.dtype}")
-                
-                if num_participants:
-                    diarize_segments = diarize_model(
-                        {
-                            "waveform": audio_tensor,
-                            "sample_rate": 16000
-                        },
-                        min_speakers=min_speakers,
-                        max_speakers=max_speakers
-                    )
-                else:
-                    diarize_segments = diarize_model(
-                        {
-                            "waveform": audio_tensor,
-                            "sample_rate": 16000
-                        }
-                    )
-                
-                logger.info("Segments are diarized")
-                aligned_result = whisperx.assign_word_speakers(diarize_segments, aligned_result)
-                logger.info("Speakers assigned successfully")
             
-                finally:
-                    # Cleanup
-                    if audio is not None:
-                        del audio
-                    if result is not None:
-                        del result
+                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_audio:
+                    tmp_audio_path = tmp_audio.name
+                    try:
+                        # Сохраняем аудио как float32 → soundfile сохранит правильно
+                        sf.write(tmp_audio_path, audio, 16000, subtype='FLOAT')
+            
+                        # Важно: проверить, что файл реально записан и существует
+                        if not os.path.isfile(tmp_audio_path):
+                            raise RuntimeError(f"Temporary audio file not created: {tmp_audio_path}")
+                        file_size = os.path.getsize(tmp_audio_path)
+                        if file_size == 0:
+                            raise RuntimeError(f"Temporary audio file is empty: {tmp_audio_path}")
+            
+                        # Передаём как строку (Path тоже ок, но str — безопаснее для pyannote)
+                        audio_input = {"audio": str(tmp_audio_path)}
+            
+                        # Вызов с явными аргументами
+                        if num_participants:
+                            diarize_segments = diarize_model(
+                                audio_input,
+                                min_speakers=min_speakers,
+                                max_speakers=max_speakers
+                            )
+                        else:
+                            diarize_segments = diarize_model(audio_input)
+            
+                        logger.info("Segments are diarized")
+                        aligned_result = whisperx.assign_word_speakers(diarize_segments, aligned_result)
+                        logger.info("Speakers assigned successfully")
+            
+                    finally:
+                        # Удаляем файл ТОЛЬКО после успешного завершения диаризации
+                        try:
+                            os.unlink(tmp_audio_path)
+                        except OSError as e:
+                            logger.warning(f"Failed to remove temp diarization file {tmp_audio_path}: {e}")
 
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
