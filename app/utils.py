@@ -137,22 +137,35 @@ async def transcriber(
                     if audio_tensor.dim() == 1:
                         audio_tensor = audio_tensor.unsqueeze(0)
                     
+                    # Ensure tensor is on CPU (pyannote might require this)
+                    audio_tensor = audio_tensor.cpu()
+                    
                     diarize_input = {
                         "waveform": audio_tensor,
                         "sample_rate": 16000
                     }
                     
-                    logger.debug(f"Audio tensor shape: {audio_tensor.shape}")
-                    logger.debug(f"Calling diarize_model with tensor input")
+                    logger.info(f"Audio tensor shape: {audio_tensor.shape}")
+                    logger.info(f"Audio tensor dtype: {audio_tensor.dtype}")
+                    logger.info(f"Audio tensor device: {audio_tensor.device}")
+                    logger.info(f"Diarize input type: {type(diarize_input)}")
+                    logger.info(f"Diarize input keys: {diarize_input.keys()}")
+                    logger.info(f"Waveform type: {type(diarize_input['waveform'])}")
+                    logger.info(f"Sample rate type: {type(diarize_input['sample_rate'])}")
+                    
+                    # Try to print what diarize_model actually expects
+                    logger.info(f"Diarize model type: {type(diarize_model)}")
                     
                     # Call diarization
                     if num_participants:
+                        logger.info(f"Calling with min_speakers={min_speakers}, max_speakers={max_speakers}")
                         diarize_segments = diarize_model(
                             diarize_input,
                             min_speakers=min_speakers,
                             max_speakers=max_speakers
                         )
                     else:
+                        logger.info("Calling without speaker constraints")
                         diarize_segments = diarize_model(diarize_input)
                     
                     logger.info("Diarization completed")
@@ -160,7 +173,7 @@ async def transcriber(
                     logger.info("Speakers assigned")
                     
                 except Exception as e:
-                    logger.error(f"Diarization failed: {e}")
+                    logger.error(f"Diarization failed: {e}", exc_info=True)
                     raise RuntimeError(f"Diarization failed: {e}") from e
 
         if torch.cuda.is_available():
