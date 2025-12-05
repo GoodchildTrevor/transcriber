@@ -84,10 +84,11 @@ async def startup_event():
 
     app.state.load_align_model_cached = load_align_model_cached
 
-    app.state.diarize_model = DiarizationPipeline.from_pretrained(
+    app.state.diarize_model = DiarizationPipeline(
         "pyannote/speaker-diarization-3.1",
-        use_auth_token=HF_TOKEN
-    ).to(torch_device)
+        use_auth_token=HF_TOKEN,
+        device=device_str
+    )
 
 
 @app.on_event("shutdown")
