@@ -11,10 +11,10 @@ if hasattr(os, "register_at_fork"):
 
 from fastapi import FastAPI, HTTPException, Query, UploadFile, Depends
 from fastapi.responses import JSONResponse
-from pyannote.audio import Pipeline
 from dotenv import load_dotenv
 import torch
 import whisperx
+from whisperx.diarize import DiarizationPipeline
 
 from app.models import TranscriptionParams, ValidatedAudioFile
 from app.utils import transcriber
@@ -84,7 +84,7 @@ async def startup_event():
 
     app.state.load_align_model_cached = load_align_model_cached
 
-    app.state.diarize_model = Pipeline.from_pretrained(
+    app.state.diarize_model = DiarizationPipeline.from_pretrained(
         "pyannote/speaker-diarization-3.1",
         use_auth_token=HF_TOKEN
     ).to(torch_device)
