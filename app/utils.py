@@ -162,7 +162,7 @@ async def transcriber(
                         logger.info(f"Converted {len(diarize_dict['segments'])} diarization segments")
                         diarize_segments = diarize_dict
                     
-                    aligned_result = whisperx.assign_word_speakers(diarize_segments, aligned_result)
+                    aligned_result = whisperx.assign_word_speakers(aligned_result, diarize_segments)
                     logger.info("Speakers assigned successfully")
                 
                 except Exception as e:
