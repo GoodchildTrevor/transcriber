@@ -128,54 +128,41 @@ async def transcriber(
                 diarize_model = app.state.diarize_model
                 logger.info(f"Diarization model loaded, max_speakers={max_speakers}")
                 
+                # Создаем временный файл для диаризации
                 tmp_audio_path = None
                 try:
-                    # Create temporary WAV file
                     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_audio:
                         tmp_audio_path = tmp_audio.name
+                        # Сохраняем аудио во временный файл
+                        sf.write(tmp_audio_path, audio, 16000)
                     
-                    # Write audio to temporary file
-                    sf.write(tmp_audio_path, audio, 16000)
-                    logger.info(f"Wrote audio to temporary file: {tmp_audio_path}")
-                    
-                    # Verify file exists and has content
-                    if not os.path.exists(tmp_audio_path):
-                        raise FileNotFoundError(f"Temporary file not created: {tmp_audio_path}")
-                    
-                    file_size = os.path.getsize(tmp_audio_path)
-                    logger.info(f"Temporary file size: {file_size} bytes")
-                    
-                    if file_size == 0:
-                        raise ValueError(f"Temporary file is empty: {tmp_audio_path}")
-                    
-                    # Call diarization with file path (as string, not dict)
                     if num_participants:
-                        logger.info(f"Calling diarization with min_speakers={min_speakers}, max_speakers={max_speakers}")
                         diarize_segments = diarize_model(
-                            tmp_audio_path,  # Just pass the path as a string!
+                            {"audio": tmp_audio_path},
                             min_speakers=min_speakers,
                             max_speakers=max_speakers
                         )
                     else:
-                        logger.info("Calling diarization without speaker constraints")
-                        diarize_segments = diarize_model(tmp_audio_path)
+                        diarize_segments = diarize_model({"audio": tmp_audio_path})
                     
-                    logger.info("Diarization completed")
+                    logger.info("Segments are diarized")
                     aligned_result = whisperx.assign_word_speakers(diarize_segments, aligned_result)
-                    logger.info("Speakers assigned")
-                    
-                except Exception as e:
-                    logger.error(f"Diarization failed: {e}", exc_info=True)
-                    raise RuntimeError(f"Diarization failed: {e}") from e
+                    logger.info("Speakers assigned successfully")
                 
                 finally:
-                    # Clean up temporary file
+                    # Удаляем временный файл
                     if tmp_audio_path and os.path.exists(tmp_audio_path):
                         try:
                             os.unlink(tmp_audio_path)
-                            logger.info(f"Cleaned up temporary file: {tmp_audio_path}")
-                        except Exception as e:
-                            logger.warning(f"Failed to clean up {tmp_audio_path}: {e}")
+                        except:
+                            pass
+
+    finally:
+        # Cleanup
+        if audio is not None:
+            del audio
+        if result is not None:
+            del result
 
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
