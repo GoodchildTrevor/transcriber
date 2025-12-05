@@ -127,49 +127,41 @@ async def transcriber(
             if diarization:
                 diarize_model = app.state.diarize_model
                 logger.info(f"Diarization model loaded, max_speakers={max_speakers}")
-            
-                tmp_audio_path = None
+                
                 try:
-                    # Create temporary file with proper context
-                    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False, mode='wb') as tmp_audio:
-                        tmp_audio_path = tmp_audio.name
-                        # Don't close yet - write within the context
-                        sf.write(tmp_audio, audio, 16000, format='WAV', subtype='PCM_16')
+                    # Prepare audio as dictionary with waveform and sample_rate
+                    # pyannote expects shape (channel, time)
+                    audio_tensor = torch.from_numpy(audio).float()
                     
-                    logger.debug(f"Written {len(audio)} samples to {tmp_audio_path}")
+                    # Add channel dimension if not present
+                    if audio_tensor.dim() == 1:
+                        audio_tensor = audio_tensor.unsqueeze(0)
                     
-                    # Verify file was created properly
-                    if not os.path.exists(tmp_audio_path):
-                        raise FileNotFoundError(f"File not found after creation: {tmp_audio_path}")
+                    diarize_input = {
+                        "waveform": audio_tensor,
+                        "sample_rate": 16000
+                    }
                     
-                    file_size = os.path.getsize(tmp_audio_path)
-                    if file_size == 0:
-                        raise ValueError(f"Empty file: {tmp_audio_path}")
-                    
-                    logger.debug(f"File size: {file_size} bytes")
-                    logger.debug(f"Calling diarize_model with: {tmp_audio_path}")
+                    logger.debug(f"Audio tensor shape: {audio_tensor.shape}")
+                    logger.debug(f"Calling diarize_model with tensor input")
                     
                     # Call diarization
                     if num_participants:
                         diarize_segments = diarize_model(
-                            tmp_audio_path,
+                            diarize_input,
                             min_speakers=min_speakers,
                             max_speakers=max_speakers
                         )
                     else:
-                        diarize_segments = diarize_model(tmp_audio_path)
+                        diarize_segments = diarize_model(diarize_input)
                     
                     logger.info("Diarization completed")
                     aligned_result = whisperx.assign_word_speakers(diarize_segments, aligned_result)
                     logger.info("Speakers assigned")
-                
-                finally:
-                    if tmp_audio_path and os.path.exists(tmp_audio_path):
-                        try:
-                            os.unlink(tmp_audio_path)
-                            logger.debug(f"Cleaned up {tmp_audio_path}")
-                        except Exception as e:
-                            logger.warning(f"Failed to remove {tmp_audio_path}: {e}")
+                    
+                except Exception as e:
+                    logger.error(f"Diarization failed: {e}")
+                    raise RuntimeError(f"Diarization failed: {e}") from e
 
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
