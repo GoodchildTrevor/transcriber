@@ -128,34 +128,39 @@ async def transcriber(
                 diarize_model = app.state.diarize_model
                 logger.info(f"Diarization model loaded, max_speakers={max_speakers}")
                 
-                # Создаем временный файл для диаризации
                 tmp_audio_path = None
                 try:
                     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_audio:
                         tmp_audio_path = tmp_audio.name
-                        # Сохраняем аудио во временный файл
-                        sf.write(tmp_audio_path, audio, 16000)
+                    
+                    sf.write(tmp_audio_path, audio, 16000)
+                    logger.info(f"Temporary audio file created: {tmp_audio_path}")
                     
                     if num_participants:
                         diarize_segments = diarize_model(
-                            {"audio": tmp_audio_path},
+                            tmp_audio_path, 
                             min_speakers=min_speakers,
                             max_speakers=max_speakers
                         )
                     else:
-                        diarize_segments = diarize_model({"audio": tmp_audio_path})
+                        diarize_segments = diarize_model(tmp_audio_path)
                     
                     logger.info("Segments are diarized")
+                    
                     aligned_result = whisperx.assign_word_speakers(diarize_segments, aligned_result)
                     logger.info("Speakers assigned successfully")
                 
+                except Exception as e:
+                    logger.error(f"Diarization error: {e}", exc_info=True)
+                    raise
+                
                 finally:
-                    # Удаляем временный файл
                     if tmp_audio_path and os.path.exists(tmp_audio_path):
                         try:
                             os.unlink(tmp_audio_path)
-                        except:
-                            pass
+                            logger.info(f"Cleaned up temporary file: {tmp_audio_path}")
+                        except Exception as cleanup_error:
+                            logger.warning(f"Failed to cleanup {tmp_audio_path}: {cleanup_error}")
 
     finally:
         # Cleanup
