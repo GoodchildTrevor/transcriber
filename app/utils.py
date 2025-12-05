@@ -130,23 +130,26 @@ async def transcriber(
             
                 tmp_audio_path = None
                 try:
-                    tmp_audio = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
-                    tmp_audio_path = tmp_audio.name
-                    tmp_audio.close() 
-            
-                    logger.debug(f"Temporary file created at: {tmp_audio_path!r} (type: {type(tmp_audio_path)})")
-            
-                    sf.write(tmp_audio_path, audio, 16000, subtype='FLOAT')
+                    # Create temporary file with proper context
+                    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False, mode='wb') as tmp_audio:
+                        tmp_audio_path = tmp_audio.name
+                        # Don't close yet - write within the context
+                        sf.write(tmp_audio, audio, 16000, format='WAV', subtype='PCM_16')
+                    
                     logger.debug(f"Written {len(audio)} samples to {tmp_audio_path}")
-            
-                    if not tmp_audio_path or not isinstance(tmp_audio_path, str):
-                        raise RuntimeError(f"Invalid tmp_audio_path: {tmp_audio_path!r}")
+                    
+                    # Verify file was created properly
                     if not os.path.exists(tmp_audio_path):
                         raise FileNotFoundError(f"File not found after creation: {tmp_audio_path}")
-                    if os.path.getsize(tmp_audio_path) == 0:
+                    
+                    file_size = os.path.getsize(tmp_audio_path)
+                    if file_size == 0:
                         raise ValueError(f"Empty file: {tmp_audio_path}")
-            
+                    
+                    logger.debug(f"File size: {file_size} bytes")
                     logger.debug(f"Calling diarize_model with: {tmp_audio_path}")
+                    
+                    # Call diarization
                     if num_participants:
                         diarize_segments = diarize_model(
                             tmp_audio_path,
@@ -155,11 +158,11 @@ async def transcriber(
                         )
                     else:
                         diarize_segments = diarize_model(tmp_audio_path)
-            
+                    
                     logger.info("Diarization completed")
                     aligned_result = whisperx.assign_word_speakers(diarize_segments, aligned_result)
                     logger.info("Speakers assigned")
-            
+                
                 finally:
                     if tmp_audio_path and os.path.exists(tmp_audio_path):
                         try:
