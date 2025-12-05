@@ -128,42 +128,55 @@ async def transcriber(
                 diarize_model = app.state.diarize_model
                 logger.info(f"Diarization model loaded, max_speakers={max_speakers}")
             
-                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_audio:
-                    tmp_audio_path = tmp_audio.name
+                tmp_audio_path = None
+                try:
+                    # Временный файл — создаём ИМЕННО с delete=False, НО управляем удалением сами
+                    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False, mode="w+b") as tmp_audio:
+                        tmp_audio_path = tmp_audio.name
+            
+                    # Явно записываем во ВНЕ контекста (чтобы файл был закрыт и доступен для чтения)
                     try:
-                        # Сохраняем аудио как float32 → soundfile сохранит правильно
                         sf.write(tmp_audio_path, audio, 16000, subtype='FLOAT')
+                        logger.debug(f"Audio saved to temporary file: {tmp_audio_path}")
+                        logger.debug(f"File exists: {os.path.exists(tmp_audio_path)}")
+                        logger.debug(f"File size: {os.path.getsize(tmp_audio_path)} bytes")
+                    except Exception as e:
+                        raise RuntimeError(f"Failed to write temporary audio file: {e}") from e
             
-                        # Важно: проверить, что файл реально записан и существует
-                        if not os.path.isfile(tmp_audio_path):
-                            raise RuntimeError(f"Temporary audio file not created: {tmp_audio_path}")
-                        file_size = os.path.getsize(tmp_audio_path)
-                        if file_size == 0:
-                            raise RuntimeError(f"Temporary audio file is empty: {tmp_audio_path}")
+                    # 🔍 Валидация перед передачей в pyannote
+                    if not isinstance(tmp_audio_path, (str, os.PathLike)):
+                        raise TypeError(f"tmp_audio_path must be str or PathLike, got {type(tmp_audio_path)}: {tmp_audio_path!r}")
+                    if not os.path.isfile(tmp_audio_path):
+                        raise FileNotFoundError(f"Temporary audio file does not exist: {tmp_audio_path}")
+                    if os.path.getsize(tmp_audio_path) == 0:
+                        raise ValueError(f"Temporary audio file is empty: {tmp_audio_path}")
             
-                        # Передаём как строку (Path тоже ок, но str — безопаснее для pyannote)
-                        audio_input = {"audio": str(tmp_audio_path)}
+                    # Передаём КАК СТРОКУ — pyannote чувствителен к Path-объектам в старых версиях
+                    audio_input = {"audio": str(tmp_audio_path)}
+                    logger.debug(f"Passing to diarize_model: {audio_input}")
             
-                        # Вызов с явными аргументами
-                        if num_participants:
-                            diarize_segments = diarize_model(
-                                audio_input,
-                                min_speakers=min_speakers,
-                                max_speakers=max_speakers
-                            )
-                        else:
-                            diarize_segments = diarize_model(audio_input)
+                    # Запуск диаризации
+                    if num_participants:
+                        diarize_segments = diarize_model(
+                            audio_input,
+                            min_speakers=min_speakers,
+                            max_speakers=max_speakers
+                        )
+                    else:
+                        diarize_segments = diarize_model(audio_input)
             
-                        logger.info("Segments are diarized")
-                        aligned_result = whisperx.assign_word_speakers(diarize_segments, aligned_result)
-                        logger.info("Speakers assigned successfully")
+                    logger.info("Segments are diarized")
+                    aligned_result = whisperx.assign_word_speakers(diarize_segments, aligned_result)
+                    logger.info("Speakers assigned successfully")
             
-                    finally:
-                        # Удаляем файл ТОЛЬКО после успешного завершения диаризации
+                finally:
+                    # Безопасное удаление
+                    if tmp_audio_path and os.path.exists(tmp_audio_path):
                         try:
                             os.unlink(tmp_audio_path)
+                            logger.debug(f"Temporary file removed: {tmp_audio_path}")
                         except OSError as e:
-                            logger.warning(f"Failed to remove temp diarization file {tmp_audio_path}: {e}")
+                            logger.warning(f"Failed to remove temp file {tmp_audio_path}: {e}")
 
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
