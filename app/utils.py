@@ -130,20 +130,17 @@ async def transcriber(
             
                 tmp_audio_path = None
                 try:
-                    # Временный файл — создаём ИМЕННО с delete=False, НО управляем удалением сами
                     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False, mode="w+b") as tmp_audio:
                         tmp_audio_path = tmp_audio.name
-            
-                    # Явно записываем во ВНЕ контекста (чтобы файл был закрыт и доступен для чтения)
+        
                     try:
                         sf.write(tmp_audio_path, audio, 16000, subtype='FLOAT')
-                        logger.debug(f"Audio saved to temporary file: {tmp_audio_path}")
-                        logger.debug(f"File exists: {os.path.exists(tmp_audio_path)}")
-                        logger.debug(f"File size: {os.path.getsize(tmp_audio_path)} bytes")
+                        logger.info(f"Audio saved to temporary file: {tmp_audio_path}")
+                        logger.info(f"File exists: {os.path.exists(tmp_audio_path)}")
+                        logger.info(f"File size: {os.path.getsize(tmp_audio_path)} bytes")
                     except Exception as e:
                         raise RuntimeError(f"Failed to write temporary audio file: {e}") from e
             
-                    # 🔍 Валидация перед передачей в pyannote
                     if not isinstance(tmp_audio_path, (str, os.PathLike)):
                         raise TypeError(f"tmp_audio_path must be str or PathLike, got {type(tmp_audio_path)}: {tmp_audio_path!r}")
                     if not os.path.isfile(tmp_audio_path):
@@ -151,11 +148,9 @@ async def transcriber(
                     if os.path.getsize(tmp_audio_path) == 0:
                         raise ValueError(f"Temporary audio file is empty: {tmp_audio_path}")
             
-                    # Передаём КАК СТРОКУ — pyannote чувствителен к Path-объектам в старых версиях
                     audio_input = {"audio": str(tmp_audio_path)}
-                    logger.debug(f"Passing to diarize_model: {audio_input}")
+                    logger.info(f"Passing to diarize_model: {audio_input}")
             
-                    # Запуск диаризации
                     if num_participants:
                         diarize_segments = diarize_model(
                             audio_input,
