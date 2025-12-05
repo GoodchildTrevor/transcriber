@@ -138,7 +138,7 @@ async def transcriber(
                     
                     if num_participants:
                         diarize_segments = diarize_model(
-                            tmp_audio_path, 
+                            tmp_audio_path,
                             min_speakers=min_speakers,
                             max_speakers=max_speakers
                         )
@@ -146,6 +146,21 @@ async def transcriber(
                         diarize_segments = diarize_model(tmp_audio_path)
                     
                     logger.info("Segments are diarized")
+                    logger.info(f"Diarize segments type: {type(diarize_segments)}")
+                    logger.info(f"Diarize segments content: {diarize_segments}")
+                    
+                    from pyannote.core import Annotation
+                    
+                    if isinstance(diarize_segments, Annotation):
+                        diarize_dict = {"segments": []}
+                        for segment, _, speaker in diarize_segments.itertracks(yield_label=True):
+                            diarize_dict["segments"].append({
+                                "start": segment.start,
+                                "end": segment.end,
+                                "speaker": speaker
+                            })
+                        logger.info(f"Converted {len(diarize_dict['segments'])} diarization segments")
+                        diarize_segments = diarize_dict
                     
                     aligned_result = whisperx.assign_word_speakers(diarize_segments, aligned_result)
                     logger.info("Speakers assigned successfully")
