@@ -130,48 +130,43 @@ async def transcriber(
             
                 tmp_audio_path = None
                 try:
-                    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False, mode="w+b") as tmp_audio:
-                        tmp_audio_path = tmp_audio.name
-        
-                    try:
-                        sf.write(tmp_audio_path, audio, 16000, subtype='FLOAT')
-                        logger.info(f"Audio saved to temporary file: {tmp_audio_path}")
-                        logger.info(f"File exists: {os.path.exists(tmp_audio_path)}")
-                        logger.info(f"File size: {os.path.getsize(tmp_audio_path)} bytes")
-                    except Exception as e:
-                        raise RuntimeError(f"Failed to write temporary audio file: {e}") from e
+                    tmp_audio = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+                    tmp_audio_path = tmp_audio.name
+                    tmp_audio.close() 
             
-                    if not isinstance(tmp_audio_path, (str, os.PathLike)):
-                        raise TypeError(f"tmp_audio_path must be str or PathLike, got {type(tmp_audio_path)}: {tmp_audio_path!r}")
-                    if not os.path.isfile(tmp_audio_path):
-                        raise FileNotFoundError(f"Temporary audio file does not exist: {tmp_audio_path}")
+                    logger.debug(f"Temporary file created at: {tmp_audio_path!r} (type: {type(tmp_audio_path)})")
+            
+                    sf.write(tmp_audio_path, audio, 16000, subtype='FLOAT')
+                    logger.debug(f"Written {len(audio)} samples to {tmp_audio_path}")
+            
+                    if not tmp_audio_path or not isinstance(tmp_audio_path, str):
+                        raise RuntimeError(f"Invalid tmp_audio_path: {tmp_audio_path!r}")
+                    if not os.path.exists(tmp_audio_path):
+                        raise FileNotFoundError(f"File not found after creation: {tmp_audio_path}")
                     if os.path.getsize(tmp_audio_path) == 0:
-                        raise ValueError(f"Temporary audio file is empty: {tmp_audio_path}")
+                        raise ValueError(f"Empty file: {tmp_audio_path}")
             
-                    audio_input = {"audio": str(tmp_audio_path)}
-                    logger.info(f"Passing to diarize_model: {audio_input}")
-            
+                    logger.debug(f"Calling diarize_model with: {tmp_audio_path}")
                     if num_participants:
                         diarize_segments = diarize_model(
-                            audio_input,
+                            tmp_audio_path,
                             min_speakers=min_speakers,
                             max_speakers=max_speakers
                         )
                     else:
-                        diarize_segments = diarize_model(audio_input)
+                        diarize_segments = diarize_model(tmp_audio_path)
             
-                    logger.info("Segments are diarized")
+                    logger.info("Diarization completed")
                     aligned_result = whisperx.assign_word_speakers(diarize_segments, aligned_result)
-                    logger.info("Speakers assigned successfully")
+                    logger.info("Speakers assigned")
             
                 finally:
-                    # Безопасное удаление
                     if tmp_audio_path and os.path.exists(tmp_audio_path):
                         try:
                             os.unlink(tmp_audio_path)
-                            logger.debug(f"Temporary file removed: {tmp_audio_path}")
-                        except OSError as e:
-                            logger.warning(f"Failed to remove temp file {tmp_audio_path}: {e}")
+                            logger.debug(f"Cleaned up {tmp_audio_path}")
+                        except Exception as e:
+                            logger.warning(f"Failed to remove {tmp_audio_path}: {e}")
 
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
