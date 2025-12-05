@@ -127,20 +127,35 @@ async def transcriber(
             if diarization:
                 diarize_model = app.state.diarize_model
                 logger.info(f"Diarization model loaded, max_speakers={max_speakers}")
-                if num_participants:
-                    diarize_segments = diarize_model(
-                        audio,
-                        min_speakers=min_speakers,
-                        max_speakers=max_speakers
-                    )
-                else:
-                    diarize_segments = diarize_model(audio)
-
-                logger.info("Segments are diarized")
-                aligned_result = whisperx.assign_word_speakers(diarize_segments, aligned_result)
-                logger.info("Speakers assigned successfully")
-
-        return aligned_result["segments"]
+                
+                # Создаем временный файл для диаризации
+                tmp_audio_path = None
+                try:
+                    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_audio:
+                        tmp_audio_path = tmp_audio.name
+                        # Сохраняем аудио во временный файл
+                        sf.write(tmp_audio_path, audio, 16000)
+                    
+                    if num_participants:
+                        diarize_segments = diarize_model(
+                            {"audio": tmp_audio_path},
+                            min_speakers=min_speakers,
+                            max_speakers=max_speakers
+                        )
+                    else:
+                        diarize_segments = diarize_model({"audio": tmp_audio_path})
+                    
+                    logger.info("Segments are diarized")
+                    aligned_result = whisperx.assign_word_speakers(diarize_segments, aligned_result)
+                    logger.info("Speakers assigned successfully")
+                
+                finally:
+                    # Удаляем временный файл
+                    if tmp_audio_path and os.path.exists(tmp_audio_path):
+                        try:
+                            os.unlink(tmp_audio_path)
+                        except:
+                            pass
 
     finally:
         # Cleanup
