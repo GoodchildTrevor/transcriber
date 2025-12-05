@@ -128,54 +128,26 @@ async def transcriber(
                 diarize_model = app.state.diarize_model
                 logger.info(f"Diarization model loaded, max_speakers={max_speakers}")
                 
-                tmp_audio_path = None
                 try:
-                    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_audio:
-                        tmp_audio_path = tmp_audio.name
-                    
-                    sf.write(tmp_audio_path, audio, 16000)
-                    logger.info(f"Temporary audio file created: {tmp_audio_path}")
-                    
                     if num_participants:
                         diarize_segments = diarize_model(
-                            tmp_audio_path,
+                            audio,
                             min_speakers=min_speakers,
                             max_speakers=max_speakers
                         )
                     else:
-                        diarize_segments = diarize_model(tmp_audio_path)
+                        diarize_segments = diarize_model(audio)
                     
                     logger.info("Segments are diarized")
                     logger.info(f"Diarize segments type: {type(diarize_segments)}")
                     logger.info(f"Diarize segments content: {diarize_segments}")
                     
-                    from pyannote.core import Annotation
-                    
-                    if isinstance(diarize_segments, Annotation):
-                        diarize_dict = {"segments": []}
-                        for segment, _, speaker in diarize_segments.itertracks(yield_label=True):
-                            diarize_dict["segments"].append({
-                                "start": segment.start,
-                                "end": segment.end,
-                                "speaker": speaker
-                            })
-                        logger.info(f"Converted {len(diarize_dict['segments'])} diarization segments")
-                        diarize_segments = diarize_dict
-                    
-                    aligned_result = whisperx.assign_word_speakers(aligned_result, diarize_segments)
+                    aligned_result = whisperx.assign_word_speakers(diarize_segments, aligned_result)
                     logger.info("Speakers assigned successfully")
                 
                 except Exception as e:
                     logger.error(f"Diarization error: {e}", exc_info=True)
                     raise
-                
-                finally:
-                    if tmp_audio_path and os.path.exists(tmp_audio_path):
-                        try:
-                            os.unlink(tmp_audio_path)
-                            logger.info(f"Cleaned up temporary file: {tmp_audio_path}")
-                        except Exception as cleanup_error:
-                            logger.warning(f"Failed to cleanup {tmp_audio_path}: {cleanup_error}")
 
     finally:
         # Cleanup
