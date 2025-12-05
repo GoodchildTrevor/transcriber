@@ -128,41 +128,40 @@ async def transcriber(
                 diarize_model = app.state.diarize_model
                 logger.info(f"Diarization model loaded, max_speakers={max_speakers}")
                 
-                # Создаем временный файл для диаризации
-                tmp_audio_path = None
-                try:
-                    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_audio:
-                        tmp_audio_path = tmp_audio.name
-                        # Сохраняем аудио во временный файл
-                        sf.write(tmp_audio_path, audio, 16000)
-                    
-                    if num_participants:
-                        diarize_segments = diarize_model(
-                            {"audio": tmp_audio_path},
-                            min_speakers=min_speakers,
-                            max_speakers=max_speakers
-                        )
-                    else:
-                        diarize_segments = diarize_model({"audio": tmp_audio_path})
-                    
-                    logger.info("Segments are diarized")
-                    aligned_result = whisperx.assign_word_speakers(diarize_segments, aligned_result)
-                    logger.info("Speakers assigned successfully")
+                # Конвертируем audio в torch tensor
+                audio_tensor = torch.from_numpy(audio).float()
+                # Добавляем размер канала: [channels, samples] -> [1, samples] для моно
+                audio_tensor = audio_tensor.unsqueeze(0)
                 
+                logger.info(f"Audio tensor shape: {audio_tensor.shape}, dtype: {audio_tensor.dtype}")
+                
+                if num_participants:
+                    diarize_segments = diarize_model(
+                        {
+                            "waveform": audio_tensor,
+                            "sample_rate": 16000
+                        },
+                        min_speakers=min_speakers,
+                        max_speakers=max_speakers
+                    )
+                else:
+                    diarize_segments = diarize_model(
+                        {
+                            "waveform": audio_tensor,
+                            "sample_rate": 16000
+                        }
+                    )
+                
+                logger.info("Segments are diarized")
+                aligned_result = whisperx.assign_word_speakers(diarize_segments, aligned_result)
+                logger.info("Speakers assigned successfully")
+            
                 finally:
-                    # Удаляем временный файл
-                    if tmp_audio_path and os.path.exists(tmp_audio_path):
-                        try:
-                            os.unlink(tmp_audio_path)
-                        except:
-                            pass
-
-    finally:
-        # Cleanup
-        if audio is not None:
-            del audio
-        if result is not None:
-            del result
+                    # Cleanup
+                    if audio is not None:
+                        del audio
+                    if result is not None:
+                        del result
 
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
