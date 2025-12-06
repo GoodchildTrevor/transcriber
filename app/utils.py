@@ -109,7 +109,7 @@ async def transcriber(
             else:
                 align_model, align_meta = app.state.load_align_model_cached(detected_lang)
             try:
-                segments = result["segments"]  # список сегментов
+                segments = result["segments"]
                 aligned_result = whisperx.align(
                     segments,
                     align_model,
@@ -127,27 +127,20 @@ async def transcriber(
             if diarization:
                 diarize_model = app.state.diarize_model
                 logger.info(f"Diarization model loaded, max_speakers={max_speakers}")
-                
-                try:
-                    if num_participants:
-                        diarize_segments = diarize_model(
-                            audio,
-                            min_speakers=min_speakers,
-                            max_speakers=max_speakers
-                        )
-                    else:
-                        diarize_segments = diarize_model(audio)
-                    
-                    logger.info("Segments are diarized")
-                    logger.info(f"Diarize segments type: {type(diarize_segments)}")
-                    logger.info(f"Diarize segments content: {diarize_segments}")
-                    
-                    aligned_result = whisperx.assign_word_speakers(diarize_segments, aligned_result)
-                    logger.info("Speakers assigned successfully")
-                
-                except Exception as e:
-                    logger.error(f"Diarization error: {e}", exc_info=True)
-                    raise
+                if num_participants:
+                    diarize_segments = diarize_model(
+                        audio,
+                        min_speakers=min_speakers,
+                        max_speakers=max_speakers
+                    )
+                else:
+                    diarize_segments = diarize_model(audio)
+
+                logger.info("Segments are diarized")
+                aligned_result = whisperx.assign_word_speakers(diarize_segments, aligned_result)
+                logger.info("Speakers assigned successfully")
+
+        return aligned_result["segments"]
 
     finally:
         # Cleanup
