@@ -14,8 +14,8 @@ RUN /opt/venv/bin/pip install --no-cache-dir \
 COPY requirements.txt .
 RUN /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
 
-COPY transcriber/ .
-COPY transcriber/entrypoint.sh /entrypoint.sh
+COPY . .
+COPY /entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 ENV PATH="/opt/venv/bin:$PATH"
