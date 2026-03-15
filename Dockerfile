@@ -4,12 +4,16 @@ RUN apt update && apt install -y ffmpeg
 
 RUN python -m venv /opt/venv
 
-RUN /opt/venv/bin/pip install --no-cache-dir \
-        --index-url https://download.pytorch.org/whl/cu128 \
-        --trusted-host download.pytorch.org \
-        torch==2.8.0+cu128 \
-        torchaudio==2.8.0+cu128 \
-        nvidia-cudnn-cu12==9.10.2.21
+RUN /opt/venv/bin/pip install --no-cache-dir --timeout=1000 \
+    --index-url https://download.pytorch.org/whl/cu128 \
+    torch==2.8.0+cu128
+
+RUN /opt/venv/bin/pip install --no-cache-dir --timeout=1000 \
+    --index-url https://download.pytorch.org/whl/cu128 \
+    torchaudio==2.8.0+cu128
+
+RUN /opt/venv/bin/pip install --no-cache-dir --timeout=1000 \
+    nvidia-cudnn-cu12==9.10.2.21
 
 COPY requirements.txt .
 RUN /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
