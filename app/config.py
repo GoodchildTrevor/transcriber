@@ -10,9 +10,18 @@ WHISPERX_THREADS = 12
 
 ALLOWED_AUDIO_TYPES = {
     "audio/mpeg",
-    "audio/wav",
-    "audio/mp4",
-    "audio/x-m4a",
-    "audio/ogg",
-    "audio/flac"
+    "audio/wav", 
+    "audio/x-wav",
+    "audio/flac", 
+    "audio/ogg", 
+    "audio/x-flac",
+    "audio/webm", 
+}
+
+ALLOWED_VIDEO_TYPES = {
+    "video/mp4",        
+    "video/webm",       
+    "video/quicktime",  
+    "video/x-matroska", 
+    "video/x-msvideo",  
 }

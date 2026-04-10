@@ -50,12 +50,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
-transcription_semaphor = asyncio.Semaphore(MAX_CONCURRENT_TRANSCRIPTIONS)
+transcription_semaphore = asyncio.Semaphore(MAX_CONCURRENT_TRANSCRIPTIONS)
 
 
 @app.on_event("startup")
 async def startup_event():
-    torch_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     device_str = "cuda" if torch.cuda.is_available() else "cpu"
     app.state.device = device_str
 
@@ -94,20 +93,27 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     logger.info("Start shutdown")
+
+    if hasattr(app.state, "load_align_model_cached"):
+        app.state.load_align_model_cached.cache_clear()
+
     if hasattr(app.state, "whisper_model"):
         del app.state.whisper_model
-    if hasattr(app.state, "align_model"):
-        del app.state.align_model
+    if hasattr(app.state, "align_ru_model"):
+        del app.state.align_ru_model
+    if hasattr(app.state, "align_ru_metadata"):
+        del app.state.align_ru_metadata
     if hasattr(app.state, "diarize_model"):
         del app.state.diarize_model
-    
+
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
+    gc.collect()
 
     logger.info("Shutdown has been completed")
 
 
-@app.post("/transcriber/")
+@app.post("/transcriber")
 async def upload_file(
     file: UploadFile = Depends(ValidatedAudioFile()),
     language: str = Query(LANGUAGE),
@@ -121,7 +127,7 @@ async def upload_file(
         diarization=diarization,
     )
 
-    async with transcription_semaphor:
+    async with transcription_semaphore:
         logger.info(f"Processing: {file.filename}, {params.model_dump()}")
 
         try: 
