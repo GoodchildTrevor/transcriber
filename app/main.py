@@ -117,9 +117,14 @@ async def shutdown_event():
 async def upload_file(
     file: UploadFile = Depends(ValidatedAudioFile()),
     language: str = Query(LANGUAGE),
-    num_participants: int = Query(1, ge=1, le=100),
-    diarization: bool = Query(False)
-    ):
+    num_participants: int | None = Query(
+        None,
+        ge=1,
+        le=100,
+        description="Ожидаемое число спикеров. Если не передано — pyannote определит их автоматически.",
+    ),
+    diarization: bool = Query(False),
+):
 
     params = TranscriptionParams(
         language=language,
@@ -130,19 +135,19 @@ async def upload_file(
     async with transcription_semaphore:
         logger.info(f"Processing: {file.filename}, {params.model_dump()}")
 
-        try: 
+        try:
             result = await transcriber(
-                app=app, 
-                logger=logger, 
-                upload_file=file, 
+                app=app,
+                logger=logger,
+                upload_file=file,
                 language=language,
-                num_participants=num_participants, 
+                num_participants=num_participants,  # None -> авто-определение в utils.transcriber
                 diarization=diarization,
             )
 
             return JSONResponse(
-                    content={"segments": result},
-                )
+                content={"segments": result},
+            )
         except RuntimeError as e:
             logger.error(f"Transcription failed: {e}")
             raise HTTPException(status_code=500, detail=str(e))
@@ -154,4 +159,3 @@ async def upload_file(
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8005)
-    
