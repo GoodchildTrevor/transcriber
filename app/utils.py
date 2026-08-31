@@ -8,6 +8,7 @@ import tempfile
 import shutil
 import subprocess
 
+
 from fastapi import FastAPI, UploadFile
 import librosa
 import numpy as np
@@ -15,11 +16,15 @@ import torch
 import soundfile as sf
 import whisperx
 
+
 from app.config import BATCH_SIZE
+
 
 load_dotenv()
 
+
 HF_TOKEN = os.getenv("HF_TOKEN")
+
 
 
 def load_audio_from_uploadfile(file: UploadFile, target_sr: int = 16000) -> np.ndarray:
@@ -47,12 +52,15 @@ def load_audio_from_uploadfile(file: UploadFile, target_sr: int = 16000) -> np.n
             if process.returncode != 0:
                 raise RuntimeError(f"FFmpeg failed: {err.decode()}")
 
+
             audio_np = np.frombuffer(out, np.int16).flatten().astype(np.float32) / 32768.0
             
             return audio_np
 
+
     except Exception as e:
         raise RuntimeError(f"Audio decoding failed: {e}") from e
+
 
 
 async def transcriber(
@@ -66,6 +74,7 @@ async def transcriber(
     """
     Transcribe and optionally diarize an audio file.
 
+
     :param app: FastAPI instance with preloaded models in app.state
     :param logger: Logger instance
     :param upload_file: Uploaded audio file
@@ -75,31 +84,41 @@ async def transcriber(
     :return: List of aligned segments
     """
 
+
     audio: Optional[np.ndarray] = None
     result: Optional[dict[str, Any]] = None
     aligned_result: Optional[dict[str, Any]] = None
 
+
     try:
-        # 1️⃣ Load audio as np.ndarray (синхронный код в thread pool можно не выносить)
+        # 1⃣⃣ Load audio as np.ndarray (синхронный код в thread pool можно не выносить)
         upload_file.file.seek(0)
         audio = load_audio_from_uploadfile(upload_file, target_sr=16000)
+
 
         min_speakers = 1
         max_speakers = num_participants
 
+
         device = app.state.device
         whisper_model = app.state.whisper_model
 
-        force_lang = None
-        if language != "auto":
-            force_lang = language
-            logger.info(f"Language forced to: '{language}'")
+
+        # Empty query/form values must not enable language detection;
+        # Russian is the service default. Pass "auto" explicitly to detect.
+        language = (language or "ru").strip().lower()
+        force_lang = None if language == "auto" else language
+
+        if force_lang:
+            logger.info("Language forced to: %r", force_lang)
         else:
             logger.info("Language detection enabled")
 
+
         loop = asyncio.get_event_loop()
 
-        # 2️⃣ Transcription with CUDA→CPU fallback
+
+        # 2⃣ Transcription with CUDA→CPU fallback
         with torch.no_grad():
             try:
                 result = await loop.run_in_executor(
@@ -117,6 +136,7 @@ async def transcriber(
                     if torch.cuda.is_available():
                         torch.cuda.empty_cache()
 
+
                     # ленивый CPU-модель-кеш в app.state
                     if not hasattr(app.state, "whisper_model_cpu"):
                         app.state.whisper_model_cpu = whisperx.load_model(
@@ -126,8 +146,10 @@ async def transcriber(
                         )
                         logger.info("Loaded CPU Whisper model (int8) for fallback")
 
+
                     whisper_cpu = app.state.whisper_model_cpu
                     device = "cpu"
+
 
                     result = await loop.run_in_executor(
                         None,
@@ -140,17 +162,20 @@ async def transcriber(
                 else:
                     raise RuntimeError(f"Whisper transcription failed: {e}") from e
 
+
         detected_lang = result.get("language")
         if not detected_lang:
             raise RuntimeError("Whisper could not detect the language")
 
-        # 3️⃣ Alignment (с reuse ru-модели + кэш для остальных языков)
+
+        # 3⃣ Alignment (с reuse ru-модели + кэш для остальных языков)
         if detected_lang == "ru" and hasattr(app.state, "align_ru_model"):
             align_model = app.state.align_ru_model
             align_meta = app.state.align_ru_metadata
             logger.debug("Using preloaded Russian align model")
         else:
             align_model, align_meta = app.state.load_align_model_cached(detected_lang)
+
 
         try:
             segments = result["segments"]
@@ -165,12 +190,15 @@ async def transcriber(
         except Exception as e:
             raise RuntimeError(f"Alignment failed: {e}") from e
 
+
         logger.info("Segments are aligned successfully")
 
-        # 4️⃣ Optional diarization with CUDA→CPU fallback
+
+        # 4⃣ Optional diarization with CUDA→CPU fallback
         if diarization:
             diarize_model = app.state.diarize_model
             logger.info(f"Diarization model loaded, max_speakers={max_speakers}")
+
 
             try:
                 diarize_segments = await loop.run_in_executor(
@@ -190,11 +218,13 @@ async def transcriber(
                     if torch.cuda.is_available():
                         torch.cuda.empty_cache()
 
+
                     diarize_model_cpu = DiarizationPipeline(
                         "pyannote/speaker-diarization-3.1",
                         use_auth_token=HF_TOKEN,
                         device="cpu",
                     )
+
 
                     diarize_segments = await loop.run_in_executor(
                         None,
@@ -209,11 +239,14 @@ async def transcriber(
                 else:
                     raise RuntimeError(f"Diarization failed: {e}") from e
 
+
             logger.info("Segments are diarized")
             aligned_result = whisperx.assign_word_speakers(diarize_segments, aligned_result)
             logger.info("Speakers assigned successfully")
 
+
         return aligned_result["segments"]
+
 
     finally:
         # Cleanup
@@ -223,6 +256,7 @@ async def transcriber(
             del result
         if aligned_result is not None:
             del aligned_result
+
 
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
